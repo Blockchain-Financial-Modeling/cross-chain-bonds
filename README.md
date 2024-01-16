@@ -1,1 +1,1 @@
-# Cross-chain management of Financial Bonds Issued with ERC-7092
+# ERC-7092: Financial Bonds
