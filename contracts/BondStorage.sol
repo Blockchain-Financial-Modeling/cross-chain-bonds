@@ -19,9 +19,13 @@ contract BondStorage {
     event MessageSent(
         bytes32 indexed messageId,
         uint64 indexed destinationChainSelector,
-        address receiver,
-        address feeToken,
-        uint256 fees
+        address receiver
+    );
+
+    event MessageSent(
+        bytes32[] indexed messageId,
+        uint64[] indexed destinationChainSelector,
+        address[] receiver
     );
 
     event MessageReceived(
@@ -29,4 +33,6 @@ contract BondStorage {
         uint64 indexed sourceChainSelector,
         address sender
     );
+
+    error NotEnoughBalance(uint256 currentBalance, uint256 calculatedFees);
 }
