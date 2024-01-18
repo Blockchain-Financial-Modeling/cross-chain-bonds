@@ -167,13 +167,20 @@ contract BondSepolia is IERC7092, IERC7092CrossChain, BondStorage, CCIPReceiver 
 
     function crossChainTransfer(address _to, uint256 _amount, bytes calldata _data, bytes32 _destinationChainID, address _destinationContract) external returns(bool) {
         address _from = msg.sender;
-        _crossChainTransfer(_from, _to, _amount, _data, _destinationChainID, _destinationContract, "crossTransfer(address,address,uint256,bytes)");
+        _crossChainTransfer(_from, _to, _amount, _data, _destinationChainID, _destinationContract, "crossTransfer(address,uint256,bytes)");
 
         return true;
     }
 
     function crossChainBatchTransfer(address[] calldata _to, uint256[] calldata _amount, bytes[] calldata _data, bytes32[] calldata _destinationChainID, address[] calldata _destinationContract) external returns(bool) {
+        address[] memory _from;
+        for(uint256 i; i < _to.length; i++) {
+            _from[i] = msg.sender;
+        }
 
+        _crossChainBatchTransfer(_from, _to, _amount, _data, _destinationChainID, _destinationContract, "crossTransfer(address,uint256,bytes)");
+
+        return true;
     }
 
     function crossChainTransferFrom(address _from, address _to, uint256 _amount, bytes calldata _data, bytes32 _destinationChainID, address _destinationContract) external returns(bool) {
@@ -196,8 +203,8 @@ contract BondSepolia is IERC7092, IERC7092CrossChain, BondStorage, CCIPReceiver 
         _decreaseAllowance(_owner, _spender, _amount);
     }
 
-    function crossTransfer(address _from, address _to, uint256 _amount, bytes calldata _data) public {
-        _transfer(_from, _to, _amount, _data);
+    function crossTransfer(address _to, uint256 _amount, bytes calldata _data) public {
+        _crossTransfer(address(0), _to, _amount, _data);
     }
 
     function _approve(address _owner, address _spender, uint256 _amount) internal virtual {
@@ -265,6 +272,36 @@ contract BondSepolia is IERC7092, IERC7092CrossChain, BondStorage, CCIPReceiver 
             uint256 _principalTransferred = _amount * _denomination;
 
             _principals[_from] = principal - _principalTransferred;
+            _principals[_to] = principalTo + _principalTransferred;
+        }
+
+        emit Transfer(_from, _to, _amount);
+
+        _afterBondTransfer(_from, _to, _amount, _data);
+    }
+
+    function _crossTransfer(
+        address _from,
+        address _to,
+        uint256 _amount,
+        bytes calldata _data
+    ) internal virtual {
+        require(_to != address(0), "wrong address");
+        require(_amount > 0, "invalid amount");
+
+        uint256 _denomination = bonds.denomination;
+        uint256 _maturityDate = bonds.maturityDate;
+
+        require(block.timestamp < _maturityDate, "matured");
+        require((_amount * _denomination) % _denomination == 0, "invalid amount");
+
+        uint256 principalTo = _principals[_to];
+
+        _beforeBondTransfer(_from, _to, _amount, _data);
+
+        unchecked {
+            uint256 _principalTransferred = _amount * _denomination;
+
             _principals[_to] = principalTo + _principalTransferred;
         }
 
@@ -416,9 +453,36 @@ contract BondSepolia is IERC7092, IERC7092CrossChain, BondStorage, CCIPReceiver 
         address _destinationContract,
         string memory _functionSignature
     ) internal virtual returns(bytes32 messageId) {
+        require(_from != address(0), "wrong address");
+        require(_to != address(0), "wrong address");
+        require(_amount > 0, "invalid amount");
+
+        uint256 principal = _principals[_from];
+        uint256 _denomination = bonds.denomination;
+        uint256 _maturityDate = bonds.maturityDate;
+        uint256 _balance = balanceOf(_from);
+
+        require(block.timestamp < _maturityDate, "matured");
+        require(_amount <= _balance, "insufficient balance");
+        require((_amount * _denomination) % _denomination == 0, "invalid amount");
+
+        _beforeBondTransfer(_from, _to, _amount, _data);
+
+        unchecked {
+            uint256 _principalTransferred = _amount * _denomination;
+            uint256 _issueVolume = bonds.denomination;
+
+            _principals[_from] = principal - _principalTransferred;
+            bonds.issueVolume = _issueVolume - _principalTransferred;
+        }
+
+        emit Transfer(_from, address(0), _amount);
+
+        _afterBondTransfer(_from, _to, _amount, _data);
+
         Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
             receiver: abi.encode(_destinationContract),
-            data: abi.encodeWithSignature(_functionSignature, _from, _to, _amount, _data),
+            data: abi.encodeWithSignature(_functionSignature, _to, _amount, _data),
             tokenAmounts: new Client.EVMTokenAmount[](0),
             extraArgs: Client._argsToBytes(
                 Client.EVMExtraArgsV1({gasLimit: 200_000})
@@ -437,6 +501,72 @@ contract BondSepolia is IERC7092, IERC7092CrossChain, BondStorage, CCIPReceiver 
         messageId = router.ccipSend(destinationChainSelector, message);
 
         emit MessageSent(messageId, destinationChainSelector, _destinationContract);
+    }
+
+    function _crossChainBatchTransfer(
+        address[] memory _from,
+        address[] calldata _to,
+        uint256[] calldata _amount,
+        bytes[] calldata _data,
+        bytes32[] calldata _destinationChainID,
+        address[] calldata _destinationContract,
+        string memory _functionSignature
+    ) internal virtual returns(bytes32[] memory messageId) {
+        uint256 _denomination = bonds.denomination;
+        uint256 _maturityDate = bonds.maturityDate;
+        uint256 _issueVolume = bonds.denomination;
+
+        require(block.timestamp < _maturityDate, "matured");
+
+        uint64[] memory chainSelectors;
+        for(uint256 i; i < _from.length; i++) {
+            uint256 principal = _principals[_from[i]];
+            uint256 _balance = balanceOf(_from[i]);
+
+            require(_from[i] != address(0), "wrong address");
+            require(_to[i] != address(0), "wrong address");
+            require(_amount[i] > 0, "invalid amount");
+            require(_amount[i] <= _balance, "insufficient balance");
+            require((_amount[i] * _denomination) % _denomination == 0, "invalid amount");
+
+            _beforeBondTransfer(_from[i], address(0), _amount[i], _data[i]);
+
+            unchecked {
+                uint256 _principalTransferred = _amount[i] * _denomination;
+
+                _principals[_from[i]] = principal - _principalTransferred;
+                bonds.issueVolume = _issueVolume - _principalTransferred;
+            }
+
+            emit TransferBatch(_from, _to, _amount);
+
+            _afterBondTransfer(_from[i], address(0), _amount[i], _data[i]);
+
+            Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
+                receiver: abi.encode(_destinationContract[i]),
+                data: abi.encodeWithSignature(_functionSignature, _to[i], _amount[i], _data[i]),
+                tokenAmounts: new Client.EVMTokenAmount[](0),
+                extraArgs: Client._argsToBytes(
+                    Client.EVMExtraArgsV1({gasLimit: 200_000})
+                ),
+                feeToken: address(linkToken)
+            });
+
+            uint64 destinationChainSelector = uint64(uint256(_destinationChainID[i]));
+            uint256 fees = router.getFee(destinationChainSelector, message);
+
+            chainSelectors[i] = destinationChainSelector;
+
+            if (fees > linkToken.balanceOf(address(this)))
+                revert NotEnoughBalance(linkToken.balanceOf(address(this)), fees);
+
+            linkToken.approve(address(router), fees);
+
+            bytes32 id = router.ccipSend(destinationChainSelector, message);
+            messageId[i] = id;
+        }
+
+        emit MessageSent(messageId, chainSelectors, _destinationContract);
     }
 
     function _crossChainBatchApproval(
