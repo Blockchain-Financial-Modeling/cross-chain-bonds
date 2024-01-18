@@ -42,6 +42,13 @@ contract BondSepolia is IERC7092, IERC7092CrossChain, BondStorage, CCIPReceiver 
         return bonds.issueVolume;
     }
 
+    function totalSupply() external view returns(uint256) {
+        uint256 _issueVolume = bonds.issueVolume;
+        uint256 _denomination = bonds.denomination;
+
+        return _issueVolume / _denomination;
+    }
+
     function couponRate() external view returns(uint256) {
         return bonds.couponRate;
     }
@@ -136,28 +143,33 @@ contract BondSepolia is IERC7092, IERC7092CrossChain, BondStorage, CCIPReceiver 
     */
     function crossChainApprove(address _spender, uint256 _amount, bytes32 _destinationChainID, address _destinationContract) external returns(bool) {
         address _owner = msg.sender;
-        _crossChainApprove(_owner, _spender, _amount, _destinationChainID, _destinationContract);
+        _crossChainApproval(_owner, _spender, _amount, _destinationChainID, _destinationContract, "crossApprove(address,address,uint256)");
 
         return true;
     }
 
     function crossChainBatchApprove(address[] calldata _spender, uint256[] calldata _amount, bytes32[] calldata _destinationChainID, address[] calldata _destinationContract) external returns(bool) {
         address _owner = msg.sender;
-        _crossChainBatchApprove(_owner, _spender, _amount, _destinationChainID, _destinationContract);
+        _crossChainBatchApproval(_owner, _spender, _amount, _destinationChainID, _destinationContract, "crossApprove(address,address,uint256)");
 
         return true;
     }
 
     function crossChainDecreaseAllowance(address _spender, uint256 _amount, bytes32 _destinationChainID, address _destinationContract) external {
-
+        address _owner = msg.sender;
+        _crossChainApproval(_owner, _spender, _amount, _destinationChainID, _destinationContract, "crossDecreaseAllowance(address,address,uint256)");
     }
 
     function crossChainBatchDecreaseAllowance(address[] calldata _spender, uint256[] calldata _amount, bytes32[] calldata _destinationChainID, address[] calldata _destinationContract) external {
-
+        address _owner = msg.sender;
+        _crossChainBatchApproval(_owner, _spender, _amount, _destinationChainID, _destinationContract, "crossDecreaseAllowance(address,address,uint256)");
     }
 
     function crossChainTransfer(address _to, uint256 _amount, bytes calldata _data, bytes32 _destinationChainID, address _destinationContract) external returns(bool) {
+        address _from = msg.sender;
+        _crossChainTransfer(_from, _to, _amount, _data, _destinationChainID, _destinationContract, "crossTransfer(address,address,uint256,bytes)");
 
+        return true;
     }
 
     function crossChainBatchTransfer(address[] calldata _to, uint256[] calldata _amount, bytes[] calldata _data, bytes32[] calldata _destinationChainID, address[] calldata _destinationContract) external returns(bool) {
@@ -178,6 +190,14 @@ contract BondSepolia is IERC7092, IERC7092CrossChain, BondStorage, CCIPReceiver 
     */
     function crossApprove(address _owner, address _spender, uint256 _amount) public {
         _approve(_owner, _spender, _amount);
+    }
+
+    function crossDecreaseAllowance(address _owner, address _spender, uint256 _amount) public {
+        _decreaseAllowance(_owner, _spender, _amount);
+    }
+
+    function crossTransfer(address _from, address _to, uint256 _amount, bytes calldata _data) public {
+        _transfer(_from, _to, _amount, _data);
     }
 
     function _approve(address _owner, address _spender, uint256 _amount) internal virtual {
@@ -356,10 +376,17 @@ contract BondSepolia is IERC7092, IERC7092CrossChain, BondStorage, CCIPReceiver 
         }
     }
 
-    function _crossChainApprove(address _owner, address _spender, uint256 _amount, bytes32 _destinationChainID, address _destinationContract) internal virtual returns(bytes32 messageId) {
+    function _crossChainApproval(
+        address _owner,
+        address _spender,
+        uint256 _amount,
+        bytes32 _destinationChainID,
+        address _destinationContract,
+        string memory _functionSignature
+    ) internal virtual returns(bytes32 messageId) {
         Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
             receiver: abi.encode(_destinationContract),
-            data: abi.encodeWithSignature("crossApprove(address,address,uint256)", _owner, _spender, _amount),
+            data: abi.encodeWithSignature(_functionSignature, _owner, _spender, _amount),
             tokenAmounts: new Client.EVMTokenAmount[](0),
             extraArgs: Client._argsToBytes(
                 Client.EVMExtraArgsV1({gasLimit: 200_000})
@@ -380,12 +407,18 @@ contract BondSepolia is IERC7092, IERC7092CrossChain, BondStorage, CCIPReceiver 
         emit MessageSent(messageId, destinationChainSelector, _destinationContract);
     }
 
-    function _crossChainBatchApprove(address _owner, address[] calldata _spender, uint256[] calldata _amount, bytes32[] calldata _destinationChainID, address[] calldata _destinationContract) internal virtual returns(bytes32[] memory messageId) {
-        uint64[] memory chainSelectors;
-        for(uint256 i; i < _spender.length; i++) {
-            Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
-            receiver: abi.encode(_destinationContract[i]),
-            data: abi.encodeWithSignature("crossApprove(address,address,uint256)", _owner, _spender[i], _amount[i]),
+    function _crossChainTransfer(
+        address _from,
+        address _to,
+        uint256 _amount,
+        bytes calldata _data,
+        bytes32 _destinationChainID,
+        address _destinationContract,
+        string memory _functionSignature
+    ) internal virtual returns(bytes32 messageId) {
+        Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
+            receiver: abi.encode(_destinationContract),
+            data: abi.encodeWithSignature(_functionSignature, _from, _to, _amount, _data),
             tokenAmounts: new Client.EVMTokenAmount[](0),
             extraArgs: Client._argsToBytes(
                 Client.EVMExtraArgsV1({gasLimit: 200_000})
@@ -393,13 +426,46 @@ contract BondSepolia is IERC7092, IERC7092CrossChain, BondStorage, CCIPReceiver 
             feeToken: address(linkToken)
         });
 
-        uint64 destinationChainSelector = uint64(uint256(_destinationChainID[i]));
+        uint64 destinationChainSelector = uint64(uint256(_destinationChainID));
         uint256 fees = router.getFee(destinationChainSelector, message);
-
-        chainSelectors[i] = destinationChainSelector;
 
         if (fees > linkToken.balanceOf(address(this)))
             revert NotEnoughBalance(linkToken.balanceOf(address(this)), fees);
+
+        linkToken.approve(address(router), fees);
+
+        messageId = router.ccipSend(destinationChainSelector, message);
+
+        emit MessageSent(messageId, destinationChainSelector, _destinationContract);
+    }
+
+    function _crossChainBatchApproval(
+        address _owner,
+        address[] calldata _spender,
+        uint256[] calldata _amount,
+        bytes32[] calldata _destinationChainID,
+        address[] calldata _destinationContract,
+        string memory _functionSignature
+    ) internal virtual returns(bytes32[] memory messageId) {
+        uint64[] memory chainSelectors;
+        for(uint256 i; i < _spender.length; i++) {
+            Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
+                receiver: abi.encode(_destinationContract[i]),
+                data: abi.encodeWithSignature(_functionSignature, _owner, _spender[i], _amount[i]),
+                tokenAmounts: new Client.EVMTokenAmount[](0),
+                extraArgs: Client._argsToBytes(
+                    Client.EVMExtraArgsV1({gasLimit: 200_000})
+                ),
+                feeToken: address(linkToken)
+            });
+
+            uint64 destinationChainSelector = uint64(uint256(_destinationChainID[i]));
+            uint256 fees = router.getFee(destinationChainSelector, message);
+
+            chainSelectors[i] = destinationChainSelector;
+
+            if (fees > linkToken.balanceOf(address(this)))
+                revert NotEnoughBalance(linkToken.balanceOf(address(this)), fees);
 
             linkToken.approve(address(router), fees);
 
