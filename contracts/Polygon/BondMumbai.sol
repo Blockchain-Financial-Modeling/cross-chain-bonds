@@ -72,32 +72,50 @@ contract BondMumbai is IERC7092, IERC7092CrossChain, BondStorage, CCIPReceiver  
         return _principal / _denomination;
     }
 
-    function allowance(address _owner, address _spender) external view returns(uint256) {
+    function allowance(
+        address _owner,
+        address _spender
+    ) external view returns(uint256) {
         return _approvals[_owner][_spender];
     }
 
-    function approve(address _spender, uint256 _amount) external returns(bool) {
+    function approve(
+        address _spender,
+        uint256 _amount
+    ) external returns(bool) {
         address _owner = msg.sender;
         _approve(_owner, _spender, _amount);
 
         return true;
     }
 
-    function decreaseAllowance(address _spender, uint256 _amount) external returns(bool) {
+    function decreaseAllowance(
+        address _spender,
+        uint256 _amount
+    ) external returns(bool) {
         address _owner = msg.sender;
         _decreaseAllowance(_owner, _spender, _amount);
 
         return true;
     }
 
-    function transfer(address _to, uint256 _amount, bytes calldata _data) external returns(bool) {
+    function transfer(
+        address _to,
+        uint256 _amount,
+        bytes calldata _data
+    ) external returns(bool) {
         address _from = msg.sender;
         _transfer(_from, _to, _amount, _data);
 
         return true;
     }
 
-    function transferFrom(address _from, address _to, uint256 _amount, bytes calldata _data) external returns(bool) {
+    function transferFrom(
+        address _from,
+        address _to,
+        uint256 _amount,
+        bytes calldata _data
+    ) external returns(bool) {
         address _spender = msg.sender;
         _spendApproval(_from, _spender, _amount);
         _transfer(_from, _to, _amount, _data);
@@ -105,21 +123,31 @@ contract BondMumbai is IERC7092, IERC7092CrossChain, BondStorage, CCIPReceiver  
         return true;
     }
 
-    function batchApprove(address[] calldata _spender, uint256[] calldata _amount) external returns(bool) {
+    function batchApprove(
+        address[] calldata _spender,
+        uint256[] calldata _amount
+    ) external returns(bool) {
         address _owner = msg.sender;
         _batchApprove(_owner, _spender, _amount);
 
         return true;
     }
 
-    function batchDecreaseAllowance(address[] calldata _spender, uint256[] calldata _amount) external returns(bool) {
+    function batchDecreaseAllowance(
+        address[] calldata _spender,
+        uint256[] calldata _amount
+    ) external returns(bool) {
         address _owner = msg.sender;
         _batchDecreaseAllowance(_owner, _spender, _amount);
 
         return true;
     }
 
-    function batchTransfer(address[] calldata _to, uint256[] calldata _amount, bytes[] calldata _data) external returns(bool) {
+    function batchTransfer(
+        address[] calldata _to,
+        uint256[] calldata _amount,
+        bytes[] calldata _data
+    ) external returns(bool) {
         address[] memory _from;
         for(uint256 i; i < _to.length; i++) {
             _from[i] = msg.sender;
@@ -130,7 +158,12 @@ contract BondMumbai is IERC7092, IERC7092CrossChain, BondStorage, CCIPReceiver  
         return true;
     }
 
-    function batchTransferFrom(address[] calldata _from, address[] calldata _to, uint256[] calldata _amount, bytes[] calldata _data) external returns(bool) {
+    function batchTransferFrom(
+        address[] calldata _from,
+        address[] calldata _to,
+        uint256[] calldata _amount,
+        bytes[] calldata _data
+    ) external returns(bool) {
         address _spender = msg.sender;
         _batchSpendApproval(_from, _spender, _amount);
         _batchTransfer(_from, _to, _amount, _data);
@@ -141,58 +174,166 @@ contract BondMumbai is IERC7092, IERC7092CrossChain, BondStorage, CCIPReceiver  
     /**
     * Cross-chain functions
     */
-    function crossChainApprove(address _spender, uint256 _amount, bytes32 _destinationChainID, address _destinationContract) external returns(bool) {
+    function crossChainApprove(
+        address _spender,
+        uint256 _amount,
+        bytes32 _destinationChainID,
+        address _destinationContract
+    ) external returns(bool) {
         address _owner = msg.sender;
-        _crossChainApproval(_owner, _spender, _amount, _destinationChainID, _destinationContract, "crossApprove(address,address,uint256)");
+        _crossChainApproval(
+            _owner,
+            _spender,
+            _amount,
+            _destinationChainID,
+            _destinationContract,
+            "crossApprove(address,address,uint256)"
+        );
 
         return true;
     }
 
-    function crossChainBatchApprove(address[] calldata _spender, uint256[] calldata _amount, bytes32[] calldata _destinationChainID, address[] calldata _destinationContract) external returns(bool) {
+    function crossChainBatchApprove(
+        address[] calldata _spender,
+        uint256[] calldata _amount,
+        bytes32[] calldata _destinationChainID,
+        address[] calldata _destinationContract
+    ) external returns(bool) {
         address _owner = msg.sender;
-        _crossChainBatchApproval(_owner, _spender, _amount, _destinationChainID, _destinationContract, "crossApprove(address,address,uint256)");
+        _crossChainBatchApproval(
+            _owner,
+            _spender,
+            _amount,
+            _destinationChainID,
+            _destinationContract,
+            "crossApprove(address,address,uint256)"
+        );
 
         return true;
     }
 
-    function crossChainDecreaseAllowance(address _spender, uint256 _amount, bytes32 _destinationChainID, address _destinationContract) external {
+    function crossChainDecreaseAllowance(
+        address _spender,
+        uint256 _amount,
+        bytes32 _destinationChainID,
+        address _destinationContract
+    ) external {
         address _owner = msg.sender;
-        _crossChainApproval(_owner, _spender, _amount, _destinationChainID, _destinationContract, "crossDecreaseAllowance(address,address,uint256)");
+        _crossChainApproval(
+            _owner,
+            _spender,
+            _amount,
+            _destinationChainID,
+            _destinationContract,
+            "crossDecreaseAllowance(address,address,uint256)"
+        );
     }
 
-    function crossChainBatchDecreaseAllowance(address[] calldata _spender, uint256[] calldata _amount, bytes32[] calldata _destinationChainID, address[] calldata _destinationContract) external {
+    function crossChainBatchDecreaseAllowance(
+        address[] calldata _spender,
+        uint256[] calldata _amount,
+        bytes32[] calldata _destinationChainID,
+        address[] calldata _destinationContract
+    ) external {
         address _owner = msg.sender;
-        _crossChainBatchApproval(_owner, _spender, _amount, _destinationChainID, _destinationContract, "crossDecreaseAllowance(address,address,uint256)");
+        _crossChainBatchApproval(
+            _owner,
+            _spender,
+            _amount,
+            _destinationChainID,
+            _destinationContract,
+            "crossDecreaseAllowance(address,address,uint256)"
+        );
     }
 
-    function crossChainTransfer(address _to, uint256 _amount, bytes calldata _data, bytes32 _destinationChainID, address _destinationContract) external returns(bool) {
+    function crossChainTransfer(
+        address _to,
+        uint256 _amount,
+        bytes calldata _data,
+        bytes32 _destinationChainID,
+        address _destinationContract
+    ) external returns(bool) {
         address _from = msg.sender;
-        _crossChainTransfer(_from, _to, _amount, _data, _destinationChainID, _destinationContract, "crossTransfer(address,uint256,bytes)");
+        _crossChainTransfer(
+            _from,
+            _to,
+            _amount,
+            _data,
+            _destinationChainID,
+            _destinationContract,
+            "crossTransfer(address,uint256,bytes)"
+        );
 
         return true;
     }
 
-    function crossChainBatchTransfer(address[] calldata _to, uint256[] calldata _amount, bytes[] calldata _data, bytes32[] calldata _destinationChainID, address[] calldata _destinationContract) external returns(bool) {
+    function crossChainBatchTransfer(
+        address[] calldata _to,
+        uint256[] calldata _amount,
+        bytes[] calldata _data,
+        bytes32[] calldata _destinationChainID,
+        address[] calldata _destinationContract
+    ) external returns(bool) {
         address[] memory _from;
         for(uint256 i; i < _to.length; i++) {
             _from[i] = msg.sender;
         }
 
-        _crossChainBatchTransfer(_from, _to, _amount, _data, _destinationChainID, _destinationContract, "crossTransfer(address,uint256,bytes)");
+        _crossChainBatchTransfer(
+            _from,
+            _to,
+            _amount,
+            _data,
+            _destinationChainID,
+            _destinationContract,
+            "crossTransfer(address,uint256,bytes)"
+        );
 
         return true;
     }
 
-    function crossChainTransferFrom(address _from, address _to, uint256 _amount, bytes calldata _data, bytes32 _destinationChainID, address _destinationContract) external returns(bool) {
+    function crossChainTransferFrom(
+        address _from,
+        address _to,
+        uint256 _amount,
+        bytes calldata _data,
+        bytes32 _destinationChainID,
+        address _destinationContract
+    ) external returns(bool) {
         address _spender = msg.sender;
         _spendApproval(_from, _spender, _amount);
-        _crossChainTransfer(_from, _to, _amount, _data, _destinationChainID, _destinationContract, "crossTransfer(address,uint256,bytes)");
+        _crossChainTransfer(
+            _from,
+            _to,
+            _amount,
+            _data,
+            _destinationChainID,
+            _destinationContract,
+            "crossTransfer(address,uint256,bytes)"
+        );
+
+        return true;
     }
 
-    function crossChainBatchTransferFrom(address[] calldata _from, address[] calldata _to, uint256[] calldata _amount, bytes[] calldata _data, bytes32[] calldata _destinationChainID, address[] calldata _destinationContract) external returns(bool) {
+    function crossChainBatchTransferFrom(
+        address[] calldata _from,
+        address[] calldata _to,
+        uint256[] calldata _amount,
+        bytes[] calldata _data,
+        bytes32[] calldata _destinationChainID,
+        address[] calldata _destinationContract
+    ) external returns(bool) {
         address _spender = msg.sender;
         _batchSpendApproval(_from, _spender, _amount);
-        _crossChainBatchTransfer(_from, _to, _amount, _data, _destinationChainID, _destinationContract, "crossTransfer(address,uint256,bytes)");
+        _crossChainBatchTransfer(
+            _from,
+            _to,
+            _amount,
+            _data,
+            _destinationChainID,
+            _destinationContract,
+            "crossTransfer(address,uint256,bytes)"
+        );
 
         return true;
     }
@@ -201,19 +342,35 @@ contract BondMumbai is IERC7092, IERC7092CrossChain, BondStorage, CCIPReceiver  
     * Functions to execute on the client side for cross-chain transactions
     * NB: These functions MUST check that the msg.sender equals to bridge contract  
     */
-    function crossApprove(address _owner, address _spender, uint256 _amount) public {
+    function crossApprove(
+        address _owner,
+        address _spender,
+        uint256 _amount
+    ) public {
         _approve(_owner, _spender, _amount);
     }
 
-    function crossDecreaseAllowance(address _owner, address _spender, uint256 _amount) public {
+    function crossDecreaseAllowance(
+        address _owner,
+        address _spender,
+        uint256 _amount
+    ) public {
         _decreaseAllowance(_owner, _spender, _amount);
     }
 
-    function crossTransfer(address _to, uint256 _amount, bytes calldata _data) public {
+    function crossTransfer(
+        address _to,
+        uint256 _amount,
+        bytes calldata _data
+    ) public {
         _crossTransfer(address(0), _to, _amount, _data);
     }
 
-    function _approve(address _owner, address _spender, uint256 _amount) internal virtual {
+    function _approve(
+        address _owner,
+        address _spender,
+        uint256 _amount
+    ) internal virtual {
         require(_owner != address(0), "wrong address");
         require(_spender != address(0), "wrong address");
         require(_amount > 0, "invalid amount");
@@ -232,7 +389,11 @@ contract BondMumbai is IERC7092, IERC7092CrossChain, BondStorage, CCIPReceiver  
         emit Approval(_owner, _spender, _amount);
     }
 
-    function _decreaseAllowance(address _owner, address _spender, uint256 _amount) internal virtual {
+    function _decreaseAllowance(
+        address _owner,
+        address _spender,
+        uint256 _amount
+    ) internal virtual {
         require(_owner != address(0), "wrong address");
         require(_spender != address(0), "wrong address");
         require(_amount > 0, "invalid amount");
@@ -327,7 +488,11 @@ contract BondMumbai is IERC7092, IERC7092CrossChain, BondStorage, CCIPReceiver  
         }
    }
 
-   function _batchApprove(address _owner, address[] calldata _spender, uint256[] calldata _amount) internal virtual {
+   function _batchApprove(
+    address _owner,
+    address[] calldata _spender,
+    uint256[] calldata _amount
+   ) internal virtual {
         uint256 _denomination = bonds.denomination;
         uint256 _maturityDate = bonds.maturityDate;
         uint256 _balance = balanceOf(_owner);
@@ -352,7 +517,11 @@ contract BondMumbai is IERC7092, IERC7092CrossChain, BondStorage, CCIPReceiver  
         emit ApprovalBatch(_owner, _spender, _amount);
     }
 
-    function _batchDecreaseAllowance(address _owner, address[] calldata _spender, uint256[] calldata _amount) internal virtual {
+    function _batchDecreaseAllowance(
+        address _owner,
+        address[] calldata _spender,
+        uint256[] calldata _amount
+    ) internal virtual {
         uint256 _denomination = bonds.denomination;
         uint256 _maturityDate = bonds.maturityDate;
 
@@ -410,7 +579,11 @@ contract BondMumbai is IERC7092, IERC7092CrossChain, BondStorage, CCIPReceiver  
         }
     }
 
-    function _batchSpendApproval(address[] calldata _from, address _spender, uint256[] calldata _amount) internal virtual {
+    function _batchSpendApproval(
+        address[] calldata _from,
+        address _spender,
+        uint256[] calldata _amount
+    ) internal virtual {
         for(uint256 i; i < _from.length; i++) {
             uint256 currentApproval = _approvals[_from[i]][_spender];
             require(_amount[i] <= currentApproval, "insufficient allowance");
@@ -630,8 +803,31 @@ contract BondMumbai is IERC7092, IERC7092CrossChain, BondStorage, CCIPReceiver  
         );
     }
 
-    function _beforeBondTransfer(address _from, address _to, uint256 _amount, bytes calldata _data) internal virtual {}
-    function _afterBondTransfer(address _from, address _to, uint256 _amount, bytes calldata _data) internal virtual {}
-    function _batchBeforeBondTransfer(address[] memory _from, address[] memory _to, uint256[] calldata _amount, bytes[] calldata _data) internal virtual {}
-    function _batchAfterBondTransfer(address[] memory _from, address[] memory _to, uint256[] calldata _amount, bytes[] calldata _data) internal virtual {}
+    function _beforeBondTransfer(
+        address _from,
+        address _to,
+        uint256 _amount,
+        bytes calldata _data
+    ) internal virtual {}
+
+    function _afterBondTransfer(
+        address _from,
+        address _to,
+        uint256 _amount,
+        bytes calldata _data
+    ) internal virtual {}
+
+    function _batchBeforeBondTransfer(
+        address[] memory _from,
+        address[] memory _to,
+        uint256[] calldata _amount,
+        bytes[] calldata _data
+    ) internal virtual {}
+
+    function _batchAfterBondTransfer(
+        address[] memory _from,
+        address[] memory _to,
+        uint256[] calldata _amount,
+        bytes[] calldata _data
+    ) internal virtual {}
 }
