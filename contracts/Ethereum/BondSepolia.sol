@@ -184,11 +184,17 @@ contract BondSepolia is IERC7092, IERC7092CrossChain, BondStorage, CCIPReceiver 
     }
 
     function crossChainTransferFrom(address _from, address _to, uint256 _amount, bytes calldata _data, bytes32 _destinationChainID, address _destinationContract) external returns(bool) {
-
+        address _spender = msg.sender;
+        _spendApproval(_from, _spender, _amount);
+        _crossChainTransfer(_from, _to, _amount, _data, _destinationChainID, _destinationContract, "crossTransfer(address,uint256,bytes)");
     }
 
     function crossChainBatchTransferFrom(address[] calldata _from, address[] calldata _to, uint256[] calldata _amount, bytes[] calldata _data, bytes32[] calldata _destinationChainID, address[] calldata _destinationContract) external returns(bool) {
+        address _spender = msg.sender;
+        _batchSpendApproval(_from, _spender, _amount);
+        _crossChainBatchTransfer(_from, _to, _amount, _data, _destinationChainID, _destinationContract, "crossTransfer(address,uint256,bytes)");
 
+        return true;
     }
 
     /**
@@ -301,8 +307,10 @@ contract BondSepolia is IERC7092, IERC7092CrossChain, BondStorage, CCIPReceiver 
 
         unchecked {
             uint256 _principalTransferred = _amount * _denomination;
+            uint256 _issueVolume = bonds.denomination;
 
             _principals[_to] = principalTo + _principalTransferred;
+            bonds.issueVolume = _issueVolume + _principalTransferred;
         }
 
         emit Transfer(_from, _to, _amount);
@@ -518,6 +526,7 @@ contract BondSepolia is IERC7092, IERC7092CrossChain, BondStorage, CCIPReceiver 
 
         require(block.timestamp < _maturityDate, "matured");
 
+        uint256 totalPrincipalTransferred;
         uint64[] memory chainSelectors;
         for(uint256 i; i < _from.length; i++) {
             uint256 principal = _principals[_from[i]];
@@ -533,9 +542,9 @@ contract BondSepolia is IERC7092, IERC7092CrossChain, BondStorage, CCIPReceiver 
 
             unchecked {
                 uint256 _principalTransferred = _amount[i] * _denomination;
+                totalPrincipalTransferred = totalPrincipalTransferred + _principalTransferred;
 
                 _principals[_from[i]] = principal - _principalTransferred;
-                bonds.issueVolume = _issueVolume - _principalTransferred;
             }
 
             emit TransferBatch(_from, _to, _amount);
@@ -565,6 +574,8 @@ contract BondSepolia is IERC7092, IERC7092CrossChain, BondStorage, CCIPReceiver 
             bytes32 id = router.ccipSend(destinationChainSelector, message);
             messageId[i] = id;
         }
+
+        bonds.issueVolume = _issueVolume - totalPrincipalTransferred;
 
         emit MessageSent(messageId, chainSelectors, _destinationContract);
     }
